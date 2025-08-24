@@ -44,19 +44,6 @@ contract MasterdX is
         maxPostTitleLength = _maxPostTitleLength;
     }
 
-    modifier isValidPost(string calldata _postTitle, string calldata _postBody) {
-        if (bytes(_postTitle).length == 0) {
-            revert EmptyPostTitle();
-        }
-        if (bytes(_postBody).length == 0) {
-            revert EmptyPost();
-        }
-        if (bytes(_postTitle).length > maxPostTitleLength) {
-            revert PostTitleLengthTooBig();
-        }
-        _;
-    }
-
     function totalPosts() external view returns (uint256) {
         return postIds.length;
     }
@@ -77,38 +64,43 @@ contract MasterdX is
     }
 
     function addPost(
+        bytes32 _postId,
         string calldata _postTitle,
-        string calldata _postBody
+        string calldata _postcid,
+        string calldata _imagecid
     )
         external
         whenNotPaused
         nonReentrant
-        isValidPost(_postTitle, _postBody)
-        returns (bytes32 _postId)
     {
-        _postId = keccak256(abi.encodePacked(_postTitle, _postBody));
-        if (postData[_postId].postId != bytes32(0)) {
-            revert PostAlreadyShared();
-        }
+
+        _isValidPost(_postId, _postTitle, _postcid, _imagecid);
 
         uint256 _endTime = block.timestamp + postLifeTime;
-        postData[_postId] =
-            PostInfo({ postId: _postId, postTitle: _postTitle, postBody: _postBody, owner: msg.sender, endTime: _endTime, archived: false });
+
+        PostInfo storage postInfo = postData[_postId];
+        postInfo.postId = _postId;
+        postInfo.postTitle = _postTitle;
+        postInfo.postcid = _postcid;
+        postInfo.imagecid = _imagecid;
+        postInfo.owner = msg.sender;
+        postInfo.endTime = _endTime;
+        postInfo.archived = false;
 
         postIds.push(_postId);
 
-        emit PostAdded(_postId, _postTitle, _postBody, msg.sender, _endTime);
+        emit PostAdded(_postId, _postTitle, _postcid, _imagecid, msg.sender, _endTime);
     }
 
-    function addComment(bytes32 _postId, string calldata _comment) external whenNotPaused nonReentrant {
+    function addComment(bytes32 _postId, string calldata _commentcid) external whenNotPaused nonReentrant {
         PostInfo memory postInfo = postData[_postId];
         if (postInfo.postId != _postId) {
             revert InvalidPost();
         }
 
-        commentData[_postId].push(CommentInfo({ postId: _postId, comment: _comment, owner: msg.sender }));
+        commentData[_postId].push(CommentInfo({ postId: _postId, commentcid: _commentcid, owner: msg.sender }));
 
-        emit CommentAdded(_postId, _comment, msg.sender);
+        emit CommentAdded(_postId, _commentcid, msg.sender);
     }
 
     function pause() external onlyAdmin {
@@ -139,6 +131,21 @@ contract MasterdX is
             postInfo.archived = true;
 
             emit FuneralCompleted(_postIds[i]);
+        }
+    }
+
+    function _isValidPost(bytes32 _postId, string calldata _postTitle, string calldata _postcid, string calldata _imagecid) internal view {
+        if (bytes(_postTitle).length == 0) {
+            revert EmptyPostTitle();
+        }
+        if (bytes(_postcid).length == 0 || bytes(_imagecid).length == 0) {
+            revert InvalidPostCidOrImageCid();
+        }
+        if (bytes(_postTitle).length > maxPostTitleLength) {
+            revert PostTitleLengthTooBig();
+        }
+        if (postData[_postId].postId != bytes32(0)) {
+            revert PostAlreadyShared();
         }
     }
 
