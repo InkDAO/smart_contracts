@@ -138,7 +138,7 @@ contract MasterdX is
         if (bytes(_postTitle).length == 0) {
             revert EmptyPostTitle();
         }
-        if (bytes(_postcid).length == 0 || bytes(_imagecid).length == 0) {
+        if (bytes(_postcid).length == 0) {
             revert InvalidPostCidOrImageCid();
         }
         if (bytes(_postTitle).length > maxPostTitleLength) {
