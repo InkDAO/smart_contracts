@@ -70,34 +70,34 @@ contract InitializationTest is MasterdXTest {
 }
 
 contract AddPostTest is MasterdXTest {
-    event PostAdded(bytes32 _postId, string _postTitle, string _post, address _owner, uint256 _endTime);
+    event PostAdded(bytes32 _postId, string _postTitle, string _postcid, string _imagecid, address _owner, uint256 _endTime);
 
     function test_RevertEmptyPost() public {
         vm.startPrank(user);
-        vm.expectRevert(IMasterdX.EmptyPost.selector);
-        masterdX.addPost("test post", "");
+        vm.expectRevert(IMasterdX.InvalidPostCidOrImageCid.selector);
+        masterdX.addPost(keccak256(abi.encodePacked("test post")), "test post", "", "");
         vm.stopPrank();
     }
 
     function test_RevertEmptypostTitle() public {
         vm.startPrank(user);
         vm.expectRevert(IMasterdX.EmptyPostTitle.selector);
-        masterdX.addPost("", "post title");
+        masterdX.addPost(keccak256(abi.encodePacked("test post")), "", "post title", "");
         vm.stopPrank();
     }
 
     function test_RevertPostDuplicatepost() public {
         vm.startPrank(user);
-        masterdX.addPost("post title", "test post");
+        masterdX.addPost(keccak256(abi.encodePacked("test post")), "post title", "postcid", "imagecid");
         vm.expectRevert(IMasterdX.PostAlreadyShared.selector);
-        masterdX.addPost("post title", "test post");
+        masterdX.addPost(keccak256(abi.encodePacked("test post")), "post title", "postcid", "imagecid");
         vm.stopPrank();
     }
 
     function test_RevertPostTitleLengthTooBig() public {
         vm.startPrank(user);
         vm.expectRevert(IMasterdX.PostTitleLengthTooBig.selector);
-        masterdX.addPost("post title post title post title post title post title post title post title post title post title post title", "test post");
+        masterdX.addPost(keccak256(abi.encodePacked("test post")), "post title post title post title post title post title post title post title post title post title post title", "postcid", "imagecid");
         vm.stopPrank();
     }
 
@@ -107,12 +107,14 @@ contract AddPostTest is MasterdXTest {
 
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit PostAdded(postId, "post title", "Testing...", user, endTime);
-        masterdX.addPost("post title", "Testing...");
+        emit PostAdded(postId, "post title", "postcid", "imagecid", user, endTime);
+        masterdX.addPost(postId, "post title", "postcid", "imagecid");
 
         IMasterdX.PostInfo memory postInfo = masterdX.getPostInfo(postId);
         assertEq(postInfo.postId, postId);
-        assertEq(postInfo.postBody, "Testing...");
+        assertEq(postInfo.postTitle, "post title");
+        assertEq(postInfo.postcid, "postcid");
+        assertEq(postInfo.imagecid, "imagecid");
         assertEq(postInfo.endTime, endTime);
         assertEq(masterdX.totalPosts(), 1);
     }
@@ -129,18 +131,28 @@ contract AddPostTest is MasterdXTest {
 
         vm.prank(user);
         masterdX.addPost(
+            postId,
             "post title",
-            "Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol"
+            "postcid",
+            "imagecid"
         );
 
         IMasterdX.PostInfo memory postInfo = masterdX.getPostInfo(postId);
         assertEq(postInfo.postId, postId);
         assertEq(
-            postInfo.postBody,
-            "Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. Hello dear, hope you are doing good. dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol dX_contracts/test/MasterQA.t.sol"
+            postInfo.postTitle,
+            "post title"
         );
         assertEq(postInfo.endTime, endTime);
         assertEq(masterdX.totalPosts(), 1);
+
+        IMasterdX.PostInfo[] memory allPosts = masterdX.getAllPosts();
+        assertEq(allPosts.length, 1);
+        assertEq(allPosts[0].postId, postId);
+        assertEq(allPosts[0].postTitle, "post title");
+        assertEq(allPosts[0].postcid, "postcid");
+        assertEq(allPosts[0].imagecid, "imagecid");
+        assertEq(allPosts[0].endTime, endTime);
     }
 }
 
@@ -155,7 +167,7 @@ contract AddCommentTest is MasterdXTest {
         postId = keccak256(abi.encodePacked("post title", "Testing..."));
 
         vm.prank(user);
-        masterdX.addPost("post title", "Testing...");
+        masterdX.addPost(postId, "post title", "postcid", "imagecid");
     }
 
     function test_RevertpostIsNotBorn() public {
@@ -172,7 +184,7 @@ contract AddCommentTest is MasterdXTest {
         IMasterdX.CommentInfo[] memory comments = masterdX.getCommentsInfo(postId);
         assertEq(comments.length, 1);
         assertEq(comments[0].postId, postId);
-        assertEq(comments[0].comment, "Testing...");
+        assertEq(comments[0].commentcid, "Testing...");
     }
 }
 
@@ -185,19 +197,19 @@ contract FuneralTest is MasterdXTest {
     function setUp() public override {
         super.setUp();
 
-        postId1 = keccak256(abi.encodePacked("post title", "Testing... 1"));
-        postId2 = keccak256(abi.encodePacked("post title", "Testing... 2"));
+        postId1 = keccak256(abi.encodePacked("post title1", "Testing... 1"));
+        postId2 = keccak256(abi.encodePacked("post title2", "Testing... 2"));
 
         vm.startPrank(user);
-        masterdX.addPost("post title", "Testing... 1");
-        masterdX.addPost("post title", "Testing... 2");
+        masterdX.addPost(postId1, "post title1", "postcid1", "imagecid1");
+        masterdX.addPost(postId2, "post title2", "postcid2", "imagecid2");
         vm.stopPrank();
     }
 
     function test_RevertNotBot() public {
         bytes32[] memory postIds = new bytes32[](2);
         postIds[0] = postId1;
-        postIds[1] = bytes32("2");
+        postIds[1] = postId2;
 
         vm.warp(block.timestamp + 5 days);
 
