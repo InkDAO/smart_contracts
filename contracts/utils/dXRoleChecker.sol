@@ -1,37 +1,33 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+pragma solidity ^0.8.20;
 
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import { UtilLib } from "./UtilLib.sol";
-import { IdXConfig } from "../interfaces/IdXConfig.sol";
-import { dXConstants } from "./dXConstants.sol";
+import { DXconstants } from "./DXconstants.sol";
+import { IdXconfig } from "../interfaces/IdXconfig.sol";
 
-abstract contract dXRoleChecker is Initializable {
-
-    event dXConfigUpdated(address indexed _dXConfig);
-
-    IdXConfig public dXConfig;
-
-    modifier onlyAdmin() {
-        if (!IAccessControl(address(dXConfig)).hasRole(dXConstants.DEFAULT_ADMIN_ROLE, msg.sender)) {
-            revert IdXConfig.NotAdmin();
+library DXroleChecker {
+    function onlyRole(address _dXConfig, bytes32 _role) external view {
+        if (!IAccessControl(_dXConfig).hasRole(_role, msg.sender)) {
+            revert IdXconfig.CallerUnauthorized();
         }
-        _;
     }
 
-    modifier onlyBot() {
-        if (!IAccessControl(address(dXConfig)).hasRole(dXConstants.BOT_ROLE, msg.sender)) {
-            revert IdXConfig.NotBot();
+    function onlyAdmin(address _dXConfig) external view {
+        if (!IAccessControl(_dXConfig).hasRole(DXconstants.DEFAULT_ADMIN_ROLE, msg.sender)) {
+            revert IdXconfig.NotAdmin();
         }
-        _;
     }
 
-    function updatedXConfig(address _dXConfig) external onlyAdmin {
-        UtilLib.checkNonZeroAddress(_dXConfig);
+    function onlyBot(address _dXConfig) external view {
+        if (!IAccessControl(_dXConfig).hasRole(DXconstants.BOT_ROLE, msg.sender)) {
+            revert IdXconfig.NotBot();
+        }
+    }
 
-        dXConfig = IdXConfig(_dXConfig);
-        emit dXConfigUpdated(_dXConfig);
+    function onlyDXMaster(address _dXConfig) external view {
+        if (IdXconfig(_dXConfig).getAddress(DXconstants.DXMASTER_ADDRESS) != msg.sender) {
+            revert IdXconfig.NotDXMaster();
+        }
     }
 }

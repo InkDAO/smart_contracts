@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+pragma solidity ^0.8.20;
 
 import { Test, console2 } from "forge-std/Test.sol";
-import { dXConfig } from "../contracts/dXConfig.sol";
-import { IdXConfig } from "../contracts/interfaces/IdXConfig.sol";
-import { dXConstants } from "../contracts/utils/dXConstants.sol";
+import { DXconfig } from "../contracts/DXconfig.sol";
+import { IdXconfig } from "../contracts/interfaces/IdXconfig.sol";
+import { DXconstants } from "../contracts/utils/DXconstants.sol";
 
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -12,8 +12,10 @@ import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/trans
 // Define the event that matches the contract
 event AddressSet(bytes32 indexed key, address address_);
 
-contract dXConfigTest is Test {
-    dXConfig public dxConfig;
+event Uint256Set(bytes32 indexed key, uint256 value);
+
+contract DXConfigTest is Test {
+    DXconfig public dxConfig;
     ProxyAdmin public proxyAdmin;
 
     address public admin = makeAddr("admin");
@@ -23,17 +25,17 @@ contract dXConfigTest is Test {
 
         proxyAdmin = new ProxyAdmin(admin);
 
-        dXConfig dXConfigImpl = new dXConfig();
-        TransparentUpgradeableProxy dXConfigProxy = 
+        DXconfig dXConfigImpl = new DXconfig();
+        TransparentUpgradeableProxy dXConfigProxy =
             new TransparentUpgradeableProxy(address(dXConfigImpl), address(proxyAdmin), "");
-        dxConfig = dXConfig(address(dXConfigProxy));
-        dxConfig.__dXConfig_Init(admin);
+        dxConfig = DXconfig(address(dXConfigProxy));
+        dxConfig.__DXconfig_Init(admin);
 
         vm.stopPrank();
     }
 }
 
-contract GetSetAddressTest is dXConfigTest {
+contract GetSetAddressTest is DXConfigTest {
     bytes32 public constant TEST_KEY = keccak256("TEST_KEY");
     address public testAddress = makeAddr("testAddress");
     address public nonAdmin = makeAddr("nonAdmin");
@@ -52,20 +54,14 @@ contract GetSetAddressTest is dXConfigTest {
 
     function test_SetAddress_NonAdmin() public {
         vm.startPrank(nonAdmin);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                bytes4(keccak256("AccessControlUnauthorizedAccount(address,bytes32)")),
-                nonAdmin,
-                dxConfig.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(IdXconfig.NotAdmin.selector);
         dxConfig.setAddress(TEST_KEY, testAddress);
         vm.stopPrank();
     }
 
     function test_SetAddress_InvalidKey() public {
         vm.startPrank(admin);
-        vm.expectRevert(IdXConfig.InvalidKey.selector);
+        vm.expectRevert(IdXconfig.InvalidKey.selector);
         dxConfig.setAddress(bytes32(0), testAddress);
         vm.stopPrank();
     }
@@ -75,6 +71,45 @@ contract GetSetAddressTest is dXConfigTest {
         vm.expectEmit(true, true, true, true);
         emit AddressSet(TEST_KEY, testAddress);
         dxConfig.setAddress(TEST_KEY, testAddress);
+        vm.stopPrank();
+    }
+}
+
+contract GetSetUint256Test is DXConfigTest {
+    bytes32 public constant TEST_KEY = keccak256("TEST_KEY");
+    address public nonAdmin = makeAddr("nonAdmin");
+    uint256 public testUint256 = 100;
+
+    function test_Initialization() public view {
+        assertEq(dxConfig.getUint256(TEST_KEY), 0);
+    }
+
+    function test_SetUint256() public {
+        vm.startPrank(admin);
+        dxConfig.setUint256(TEST_KEY, testUint256);
+        assertEq(dxConfig.getUint256(TEST_KEY), testUint256);
+        vm.stopPrank();
+    }
+
+    function test_SetUint256_NonAdmin() public {
+        vm.startPrank(nonAdmin);
+        vm.expectRevert(IdXconfig.NotAdmin.selector);
+        dxConfig.setUint256(TEST_KEY, testUint256);
+        vm.stopPrank();
+    }
+
+    function test_SetUint256_InvalidKey() public {
+        vm.startPrank(admin);
+        vm.expectRevert(IdXconfig.InvalidKey.selector);
+        dxConfig.setUint256(bytes32(0), testUint256);
+        vm.stopPrank();
+    }
+
+    function test_SetUint256_Event() public {
+        vm.startPrank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit Uint256Set(TEST_KEY, testUint256);
+        dxConfig.setUint256(TEST_KEY, testUint256);
         vm.stopPrank();
     }
 }

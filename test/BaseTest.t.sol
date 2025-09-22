@@ -1,37 +1,44 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import { Script, console2 } from "forge-std/Script.sol";
+import { Test, console2 } from "forge-std/Test.sol";
 
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import { DXmaster } from "../contracts/DXmaster.sol";
-import { IdXmaster } from "../contracts/interfaces/IdXmaster.sol";
-import { DXconfig } from "../contracts/DXconfig.sol";
-import { IdXconfig } from "../contracts/interfaces/IdXconfig.sol";
 import { DXconstants } from "../contracts/utils/DXconstants.sol";
+import { DXmaster } from "../contracts/DXmaster.sol";
+import { DXconfig } from "../contracts/DXconfig.sol";
+import { DXasset } from "../contracts/Token/DXasset.sol";
 import { DXassetFactory } from "../contracts/factory/DXassetFactory.sol";
+import { IdXasset } from "../contracts/interfaces/IdXasset.sol";
+import { IdXconfig } from "../contracts/interfaces/IdXconfig.sol";
+import { IdXmaster } from "../contracts/interfaces/IdXmaster.sol";
+import { IdXassetFactory } from "../contracts/interfaces/IdXassetFactory.sol";
 
-contract DeploydX is Script {
+contract BaseTest is Test {
+    DXasset public dXasset;
     DXmaster public dXmaster;
     DXconfig public dXconfig;
     ProxyAdmin public proxyAdmin;
     DXassetFactory public dXassetFactory;
 
-    address admin;
+    address public bot;
+    address public user;
+    address public admin;
 
-    uint256 maxCommentLength;
-    uint256 maxAssetTitleLength;
+    uint256 public maxCommentLength;
+    uint256 public maxAssetTitleLength;
 
-    function setUp() external {
-        admin = 0xEBA436aE4012D8194a5b44718a8ba6ec553241bE;
+    function setUp() public virtual {
+        bot = makeAddr("bot");
+        user = makeAddr("user");
+        admin = makeAddr("admin");
+
         maxCommentLength = 200;
         maxAssetTitleLength = 100;
-    }
 
-    function run() public {
-        vm.startBroadcast();
+        vm.startPrank(admin);
 
         proxyAdmin = new ProxyAdmin(admin);
 
@@ -53,16 +60,13 @@ contract DeploydX is Script {
         dXassetFactory = DXassetFactory(address(dXassetFactoryProxy));
         dXassetFactory.__DXassetFactory_Init(address(dXconfig));
 
-        dXconfig.grantRole(DXconstants.BOT_ROLE, admin);
+        dXasset = new DXasset("DXasset", "DXasset", user, "assetcid", 1 ether / 100, address(dXconfig));
+
+        dXconfig.grantRole(DXconstants.BOT_ROLE, bot);
         dXconfig.setUint256(DXconstants.PLATFORM_FEE, 500); // 5%
         dXconfig.setAddress(DXconstants.DXMASTER_ADDRESS, address(dXmaster));
         dXconfig.setAddress(DXconstants.ASSET_FACTORY_ADDRESS, address(dXassetFactory));
 
-        console2.log("dXconfig deployed at: ", address(dXconfig));
-        console2.log("dXmaster deployed at: ", address(dXmaster));
-        console2.log("proxyAdmin deployed at: ", address(proxyAdmin));
-        console2.log("dXassetFactory deployed at: ", address(dXassetFactory));
-
-        vm.stopBroadcast();
+        vm.stopPrank();
     }
 }
