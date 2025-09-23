@@ -4,8 +4,21 @@ pragma solidity ^0.8.20;
 interface IdXmaster {
     struct AssetInfo {
         address author;
+        string assetCid;
+        string thumbnailCid;
         string assetTitle;
+        string description;
         address assetAddress;
+        uint256 costInNativeInWei;
+    }
+
+    struct AddAssetParams {
+        bytes32 salt;
+        string assetTitle;
+        string assetCid;
+        string thumbnailCid;
+        string description;
+        uint256 costInNativeInWei;
     }
 
     struct CommentInfo {
@@ -39,7 +52,7 @@ interface IdXmaster {
     event AssetBought(string _assetCid, uint256 _amount, address _buyer);
     event CommentAdded(string _assetCid, string _comment, address _author);
     event AssetAdded(
-        string _assetTitle, string _assetCid, address _assetAddress, address _author, uint256 _costInNativeInWei
+        string _assetTitle, string _assetCid, string _thumbnailCid, address _assetAddress, address _author, uint256 _costInNativeInWei
     );
 
     function pause() external;
@@ -58,10 +71,7 @@ interface IdXmaster {
     function withdrawFee(uint256 _amount) external;
     function addComment(string memory _assetCid, string calldata _comment) external;
     function addAsset(
-        bytes32 _salt,
-        string calldata _assetTitle,
-        string calldata _assetCid,
-        uint256 _costInNativeInWei
+        AddAssetParams calldata _params
     )
         external;
 }

@@ -32,52 +32,90 @@ contract DXMasterTest is BaseTest {
 
 contract AddAssetTest is BaseTest {
     event AssetAdded(
-        string _assetTitle, string _assetCid, address _assetAddress, address _owner, uint256 _costInNativeInWei
+        string _assetTitle, string _assetCid, string _thumbnailCid, address _assetAddress, address _owner, uint256 _costInNativeInWei
     );
 
     function test_RevertEmptyAssetCid() public {
         vm.startPrank(user);
         vm.expectRevert(IdXmaster.InvalidAssetCid.selector);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), "test asset", "", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "test asset",
+            assetCid: "",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
         vm.stopPrank();
     }
 
     function test_RevertEmptyAssetTitle() public {
         vm.startPrank(user);
         vm.expectRevert(IdXmaster.EmptyAssetTitle.selector);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), "", "asset title", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "",
+            assetCid: "asset title",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
         vm.stopPrank();
     }
 
     function test_RevertAssetAlreadyAdded() public {
         vm.startPrank(user);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), "asset title", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
         vm.expectRevert(IdXmaster.AssetAlreadyAdded.selector);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), "asset title", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
         vm.stopPrank();
     }
 
     function test_RevertAssetTitleLengthTooBig() public {
         vm.startPrank(user);
         vm.expectRevert(IdXmaster.AssetTitleLengthTooBig.selector);
-        dXmaster.addAsset(
-            keccak256(abi.encodePacked("test asset")),
-            "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz",
-            "assetcid",
-            1 ether / 100 // 0.01 ether
-        );
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100 // 0.01 ether
+        }));
         vm.stopPrank();
     }
 
     function test_EmitAssetAdded() public {
         vm.prank(user);
         vm.expectEmit(true, true, true, false);
-        emit AssetAdded("asset title", "assetcid", address(0), user, 1 ether / 100);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), "asset title", "assetcid", 1 ether / 100);
+        emit AssetAdded("asset title", "assetcid", "thumbnailcid", address(0), user, 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset 1")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
 
         IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
         assertEq(assetInfo.author, user);
         assertEq(assetInfo.assetTitle, "asset title");
+        assertEq(assetInfo.thumbnailCid, "thumbnailcid");
         assertTrue(assetInfo.assetAddress != address(0));
         assertEq(IdXasset(assetInfo.assetAddress).costInNativeInWei(), 1 ether / 100);
 
@@ -86,7 +124,14 @@ contract AddAssetTest is BaseTest {
 
     function test_AddLargeAsset() public {
         vm.prank(user);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), "asset title", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset 1")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
 
         IdXmaster.AssetInfo memory postInfo = dXmaster.getAssetInfo("assetcid");
         assertEq(postInfo.assetTitle, "asset title");
@@ -110,7 +155,14 @@ contract AddCommentTest is BaseTest {
         super.setUp();
 
         vm.prank(user);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), "asset title", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset 1")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
     }
 
     function test_RevertAssetIsNotBorn() public {
@@ -156,7 +208,14 @@ contract BuyAssetTest is BaseTest {
 
         author = makeAddr("author");
         vm.prank(author);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), "asset title", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset 1")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
 
         IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
         dXasset = DXasset(assetInfo.assetAddress);
@@ -187,7 +246,14 @@ contract BuyAssetTest is BaseTest {
 
     function test_RevertAuthorNativeTransferFailed() public {
         vm.prank(address(dXconfig));
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), "asset title", "assetcid1", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset 1")),
+            assetTitle: "asset title",
+            assetCid: "assetcid1",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
 
         deal(user, 1 ether);
         vm.prank(user);
@@ -242,7 +308,14 @@ contract BeforeTokenTransferTest is BaseTest {
 
         author = makeAddr("author");
         vm.prank(author);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), "asset title", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset 1")),
+            assetTitle: "asset title",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
 
         IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
         dXasset = DXasset(assetInfo.assetAddress);

@@ -60,7 +60,7 @@ contract BaseTest is Test {
         dXassetFactory = DXassetFactory(address(dXassetFactoryProxy));
         dXassetFactory.__DXassetFactory_Init(address(dXconfig));
 
-        dXasset = new DXasset("DXasset", "DXasset", user, "assetcid", 1 ether / 100, address(dXconfig));
+        dXasset = new DXasset("DXasset", "DXasset", user, "assetcid", "thumbnailcid", 1 ether / 100, address(dXconfig), "description");
 
         dXconfig.grantRole(DXconstants.BOT_ROLE, bot);
         dXconfig.setUint256(DXconstants.PLATFORM_FEE, 500); // 5%

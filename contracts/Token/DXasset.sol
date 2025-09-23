@@ -14,23 +14,29 @@ contract DXasset is ERC20, IdXasset, Ownable {
     using SafeERC20 for ERC20;
 
     string public assetCid;
+    string public thumbnailCid;
     IdXconfig public dXConfig;
     uint256 public costInNativeInWei;
+    string public description;
 
     constructor(
         string memory name,
         string memory symbol,
         address _owner,
         string memory _assetCid,
+        string memory _thumbnailCid,
         uint256 _costInNativeInWei,
-        address _dXConfig
+        address _dXConfig,
+        string memory _description
     )
         ERC20(name, symbol)
         Ownable(_owner)
     {
         assetCid = _assetCid;
+        thumbnailCid = _thumbnailCid;
         costInNativeInWei = _costInNativeInWei;
         dXConfig = IdXconfig(_dXConfig);
+        description = _description;
     }
 
     modifier onlyOwnerOrDxmaster() {

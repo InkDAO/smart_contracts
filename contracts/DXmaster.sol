@@ -123,30 +123,34 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
     }
 
     function addAsset(
-        bytes32 _salt,
-        string calldata _assetTitle,
-        string calldata _assetCid,
-        uint256 _costInNativeInWei
+        AddAssetParams calldata _params
     )
         external
         nonReentrant
         whenNotPaused
-        isValidAsset(_assetTitle, _assetCid)
+        isValidAsset(_params.assetTitle, _params.assetCid)
     {
         address assetFactoryAddress = dXConfig.getAddress(DXconstants.ASSET_FACTORY_ADDRESS);
         address assetAddress =
-            IdXassetFactory(assetFactoryAddress).createAsset(_salt, _assetCid, _costInNativeInWei, msg.sender);
+            IdXassetFactory(assetFactoryAddress).createAsset(_params.salt, _params.assetCid, _params.thumbnailCid, _params.costInNativeInWei, msg.sender, _params.description);
 
-        AssetInfo storage assetInfo = assetData[_assetCid];
-        assetInfo.author = msg.sender;
-        assetInfo.assetTitle = _assetTitle;
-        assetInfo.assetAddress = assetAddress;
+        {
+            AssetInfo storage assetInfo = assetData[_params.assetCid];
+            assetInfo.author = msg.sender;
+            assetInfo.assetCid = _params.assetCid;
+            assetInfo.thumbnailCid = _params.thumbnailCid;
+            assetInfo.assetTitle = _params.assetTitle;
+            assetInfo.description = _params.description;
+            assetInfo.costInNativeInWei = _params.costInNativeInWei;
+            assetInfo.assetAddress = assetAddress;
+            
+            assetData[_params.assetCid] = assetInfo;
+        }
 
-        assetCids.push(_assetCid);
+        assetCids.push(_params.assetCid);
         isDxAsset[assetAddress] = true;
-        assetData[_assetCid] = assetInfo;
 
-        emit AssetAdded(_assetTitle, _assetCid, assetAddress, msg.sender, _costInNativeInWei);
+        emit AssetAdded(_params.assetTitle, _params.assetCid, _params.thumbnailCid, assetAddress, msg.sender, _params.costInNativeInWei);
     }
 
     function addComment(
@@ -276,7 +280,9 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
 
         uint256 platformFee = totalAmount * dXConfig.getUint256(DXconstants.PLATFORM_FEE) / DXconstants.DENOMINATOR;
         uint256 authorFee = totalAmount - platformFee;
-        (bool authorSuccess,) = payable(_author).call{ value: authorFee }("");
-        if (!authorSuccess) revert NativeTransferFailed();
+        if (authorFee > 0) {
+            (bool authorSuccess,) = payable(_author).call{ value: authorFee }("");
+            if (!authorSuccess) revert NativeTransferFailed();
+        }
     }
 }

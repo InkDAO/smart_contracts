@@ -12,7 +12,14 @@ contract DXassetFactoryTest is BaseTest {
         super.setUp();
 
         vm.prank(user);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), "test asset", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "test asset",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
         IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
         dXasset = DXasset(assetInfo.assetAddress);
     }
@@ -25,11 +32,11 @@ contract DXassetFactoryTest is BaseTest {
 contract CreateAssetTest is DXassetFactoryTest {
     error NotDXMaster();
 
-    event AssetCreated(address _assetAddress, string _assetCid, uint256 _costInNative);
+    event AssetCreated(address _assetAddress, string _assetCid, string _thumbnailCid, uint256 _costInNative, string _description);
 
     function test_CreateAsset() public {
         vm.prank(address(dXmaster));
-        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", 1 ether / 100, user);
+        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", "thumbnailcid", 1 ether / 100, user, "description");
 
         assertEq(dXassetFactory.totalAssetCount(), 2);
         assertEq(dXassetFactory.getAllAssets()[0], address(dXasset));
@@ -38,14 +45,14 @@ contract CreateAssetTest is DXassetFactoryTest {
     function test_RevertNotDXMaster() public {
         vm.prank(user);
         vm.expectRevert(NotDXMaster.selector);
-        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", 1 ether / 100, user);
+        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", "thumbnailcid", 1 ether / 100, user, "description");
     }
 
     function test_EmitAssetCreated() public {
         vm.prank(address(dXmaster));
         vm.expectEmit(false, false, false, false);
-        emit AssetCreated(address(dXasset), "assetcid", 1 ether / 100);
-        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", 1 ether / 100, user);
+        emit AssetCreated(address(dXasset), "assetcid", "thumbnailcid", 1 ether / 100, "description");
+        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", "thumbnailcid", 1 ether / 100, user, "description");
     }
 }
 

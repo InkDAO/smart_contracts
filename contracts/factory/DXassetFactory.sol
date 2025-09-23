@@ -39,8 +39,10 @@ contract DXassetFactory is Initializable, PausableUpgradeable, ReentrancyGuardUp
     function createAsset(
         bytes32 _salt,
         string memory _assetCid,
+        string memory _thumbnailCid,
         uint256 _costInNative,
-        address _owner
+        address _owner,
+        string memory _description
     )
         external
         nonReentrant
@@ -58,12 +60,12 @@ contract DXassetFactory is Initializable, PausableUpgradeable, ReentrancyGuardUp
             _salt,
             abi.encodePacked(
                 type(DXasset).creationCode,
-                abi.encode(name, symbol, _owner, _assetCid, _costInNative, address(dXConfig))
+                abi.encode(name, symbol, _owner, _assetCid, _thumbnailCid, _costInNative, address(dXConfig), _description)
             )
         );
         assetAddresses.push(assetAddress);
 
-        emit AssetCreated(assetAddress, _assetCid, _costInNative);
+        emit AssetCreated(assetAddress, _assetCid, _thumbnailCid, _costInNative, _description);
     }
 
     function pause() external {

@@ -3,13 +3,15 @@ pragma solidity ^0.8.20;
 
 interface IdXassetFactory {
     event dXConfigUpdated(address _dXConfig);
-    event AssetCreated(address _assetAddress, string _assetCid, uint256 _costInNative);
+    event AssetCreated(address _assetAddress, string _assetCid, string _thumbnailCid, uint256 _costInNative, string _description);
 
     function createAsset(
         bytes32 _salt,
         string memory _assetCid,
+        string memory _thumbnailCid,
         uint256 _costInNativeInWei,
-        address _owner
+        address _owner,
+        string memory _description
     )
         external
         returns (address assetAddress);

@@ -51,7 +51,14 @@ contract MintTest is BaseTest {
         super.setUp();
 
         vm.prank(user);
-        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), "test asset", "assetcid", 1 ether / 100);
+        dXmaster.addAsset(IdXmaster.AddAssetParams({
+            salt: keccak256(abi.encodePacked("test asset")),
+            assetTitle: "test asset",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }));
         IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
         dXasset = DXasset(assetInfo.assetAddress);
     }
