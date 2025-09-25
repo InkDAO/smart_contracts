@@ -13,30 +13,31 @@ import { IdXmaster } from "../interfaces/IdXmaster.sol";
 contract DXasset is ERC20, IdXasset, Ownable {
     using SafeERC20 for ERC20;
 
-    string public assetCid;
+    string public assetTitle;
     string public thumbnailCid;
-    IdXconfig public dXConfig;
-    uint256 public costInNativeInWei;
     string public description;
+    uint256 public costInNativeInWei;
+    
+    string public assetCid;
+    
+    IdXconfig public dXConfig;
 
     constructor(
         string memory name,
         string memory symbol,
-        address _owner,
-        string memory _assetCid,
-        string memory _thumbnailCid,
-        uint256 _costInNativeInWei,
-        address _dXConfig,
-        string memory _description
+        AssetInfo memory _assetInfoParams,
+        address _dXConfig
     )
         ERC20(name, symbol)
-        Ownable(_owner)
+        Ownable(_assetInfoParams.author)
     {
-        assetCid = _assetCid;
-        thumbnailCid = _thumbnailCid;
-        costInNativeInWei = _costInNativeInWei;
+        assetCid = _assetInfoParams.assetCid;
+        assetTitle = _assetInfoParams.assetTitle;
+        thumbnailCid = _assetInfoParams.thumbnailCid;
+        costInNativeInWei = _assetInfoParams.costInNativeInWei;
+        description = _assetInfoParams.description;
+        
         dXConfig = IdXconfig(_dXConfig);
-        description = _description;
     }
 
     modifier onlyOwnerOrDxmaster() {
@@ -44,6 +45,17 @@ contract DXasset is ERC20, IdXasset, Ownable {
             revert NotOwnerOrDxmaster();
         }
         _;
+    }
+
+    function getAssetInfo() external view returns (AssetInfo memory) {
+        return AssetInfo({
+            assetCid: assetCid,
+            assetTitle: assetTitle,
+            thumbnailCid: thumbnailCid,
+            description: description,
+            costInNativeInWei: costInNativeInWei,
+            author: owner()
+        });
     }
 
     function mint(address _to, uint256 _amount) external onlyOwnerOrDxmaster {

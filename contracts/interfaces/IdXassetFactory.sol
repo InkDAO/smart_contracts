@@ -1,24 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-
+import { IdXasset } from "./IdXasset.sol";
 interface IdXassetFactory {
     event dXConfigUpdated(address _dXConfig);
-    event AssetCreated(address _assetAddress, string _assetCid, string _thumbnailCid, uint256 _costInNative, string _description);
+    event AssetCreated(address _assetAddress, string _assetCid);
 
     function createAsset(
         bytes32 _salt,
-        string memory _assetCid,
-        string memory _thumbnailCid,
-        uint256 _costInNativeInWei,
-        address _owner,
-        string memory _description
+        string memory _name,
+        string memory _symbol,
+        IdXasset.AssetInfo memory _assetInfoParams
     )
         external
         returns (address assetAddress);
-
-    function getAllAssets() external view returns (address[] memory);
-
-    function totalAssetCount() external view returns (uint256);
 
     function updatedXConfig(address _dXConfig) external;
 }

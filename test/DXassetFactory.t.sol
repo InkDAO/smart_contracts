@@ -3,25 +3,39 @@ pragma solidity ^0.8.20;
 
 import { BaseTest } from "./BaseTest.t.sol";
 import { DXasset } from "../contracts/Token/DXasset.sol";
+import { IdXasset } from "../contracts/interfaces/IdXasset.sol";
 import { IdXmaster } from "../contracts/interfaces/IdXmaster.sol";
 import { IdXconfig } from "../contracts/interfaces/IdXconfig.sol";
 import { UtilLib } from "../contracts/utils/UtilLib.sol";
 
 contract DXassetFactoryTest is BaseTest {
+    IdXasset.AssetInfo public assetInfo;
+
     function setUp() public override {
         super.setUp();
 
         vm.prank(user);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
-            assetTitle: "test asset",
+        address assetAddress = dXmaster.addAsset(
+            keccak256(abi.encodePacked("test asset")), 
+            IdXmaster.AssetInfoParams({
+                assetTitle: "test asset",
+                assetCid: "assetcid",
+                thumbnailCid: "thumbnailcid",
+                description: "description",
+                costInNativeInWei: 1 ether / 100
+            })
+        );
+
+        dXasset = DXasset(assetAddress);
+
+        assetInfo = IdXasset.AssetInfo({
+            author: user,
+            assetTitle: "test asset 1",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
             description: "description",
             costInNativeInWei: 1 ether / 100
-        }));
-        IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
-        dXasset = DXasset(assetInfo.assetAddress);
+        });
     }
 
     function test_Initialization() public view {
@@ -32,27 +46,24 @@ contract DXassetFactoryTest is BaseTest {
 contract CreateAssetTest is DXassetFactoryTest {
     error NotDXMaster();
 
-    event AssetCreated(address _assetAddress, string _assetCid, string _thumbnailCid, uint256 _costInNative, string _description);
+    event AssetCreated(address _assetAddress, string _assetCid);
 
     function test_CreateAsset() public {
         vm.prank(address(dXmaster));
-        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", "thumbnailcid", 1 ether / 100, user, "description");
-
-        assertEq(dXassetFactory.totalAssetCount(), 2);
-        assertEq(dXassetFactory.getAllAssets()[0], address(dXasset));
+        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "name", "symbol", assetInfo);
     }
 
     function test_RevertNotDXMaster() public {
         vm.prank(user);
         vm.expectRevert(NotDXMaster.selector);
-        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", "thumbnailcid", 1 ether / 100, user, "description");
+        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "name", "symbol", assetInfo);
     }
 
     function test_EmitAssetCreated() public {
         vm.prank(address(dXmaster));
         vm.expectEmit(false, false, false, false);
-        emit AssetCreated(address(dXasset), "assetcid", "thumbnailcid", 1 ether / 100, "description");
-        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "assetcid", "thumbnailcid", 1 ether / 100, user, "description");
+        emit AssetCreated(address(dXasset), assetInfo.assetCid);
+        dXassetFactory.createAsset(keccak256(abi.encodePacked("test asset")), "name", "symbol", assetInfo);
     }
 }
 

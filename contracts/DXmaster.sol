@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -18,15 +19,15 @@ import { IdXassetFactory } from "./interfaces/IdXassetFactory.sol";
 contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, IdXmaster {
     using SafeERC20 for IERC20;
 
-    string[] public assetCids;
-    mapping(address => bool) public isDxAsset;
-    mapping(string => AssetInfo) public assetData;
-    mapping(string => CommentInfo[]) public commentData;
+    address[] public assetAddresses;
+    mapping(string => address) public assetData;
+    mapping(address => CommentInfo[]) public commentData;
     mapping(address => UserAssetInfo[]) public userAssetData;
 
     IdXconfig public dXConfig;
-    uint256 public maxAssetTitleLength;
     uint256 public maxCommentLength;
+    uint256 public maxAssetTitleLength;
+    uint256 public maxDescriptionLength;
 
     constructor() {
         _disableInitializers();
@@ -34,8 +35,9 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
 
     function __DXmaster_Init(
         address _dXConfig,
+        uint256 _maxCommentLength,
         uint256 _maxAssetTitleLength,
-        uint256 _maxCommentLength
+        uint256 _maxDescriptionLength
     )
         public
         initializer
@@ -44,31 +46,34 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
         __ReentrancyGuard_init();
 
         dXConfig = IdXconfig(_dXConfig);
-        maxAssetTitleLength = _maxAssetTitleLength;
         maxCommentLength = _maxCommentLength;
+        maxAssetTitleLength = _maxAssetTitleLength;
+        maxDescriptionLength = _maxDescriptionLength;
     }
 
-    modifier isValidAsset(string calldata _assetTitle, string calldata _assetCid) {
-        if (bytes(_assetCid).length == 0) {
+    modifier isValidAsset(AssetInfoParams calldata _assetInfoParams) {
+        if (bytes(_assetInfoParams.assetCid).length == 0) {
             revert InvalidAssetCid();
         }
-        if (assetData[_assetCid].assetAddress != address(0)) {
+        if (assetData[_assetInfoParams.assetCid] != address(0)) {
             revert AssetAlreadyAdded();
         }
-        if (bytes(_assetTitle).length == 0) {
+        if (bytes(_assetInfoParams.assetTitle).length == 0) {
             revert EmptyAssetTitle();
         }
-        if (bytes(_assetTitle).length > maxAssetTitleLength) {
+        if (bytes(_assetInfoParams.assetTitle).length > maxAssetTitleLength) {
             revert AssetTitleLengthTooBig();
+        }
+        if (bytes(_assetInfoParams.thumbnailCid).length == 0) {
+            revert InvalidThumbnailCid();
+        }
+        if (bytes(_assetInfoParams.description).length > maxDescriptionLength) {
+            revert DescriptionTooBig();
         }
         _;
     }
 
-    modifier isValidComment(string memory _assetCid, string calldata _comment) {
-        AssetInfo memory assetInfo = assetData[_assetCid];
-        if (assetInfo.assetAddress == address(0)) {
-            revert InvalidAsset();
-        }
+    modifier isValidComment(address _assetAddress, string calldata _comment) {
         if (bytes(_comment).length == 0) {
             revert EmptyComment();
         }
@@ -78,44 +83,45 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
         _;
     }
 
-    modifier onlydXAsset() {
-        if (!isDxAsset[msg.sender]) {
+    modifier onlydXAsset(address _assetAddress) {
+        if (_assetAddress == address(0)) {
+            revert InvalidAssetAddress();
+        }
+        string memory assetCid = IdXasset(_assetAddress).assetCid();
+        if (assetData[assetCid] != _assetAddress) {
             revert NotdXAsset();
         }
         _;
     }
 
-    modifier isValidBuy(string memory _assetCid, uint256 _amount) {
+    modifier isValidBuy(address _assetAddress, uint256 _amount) {
         if (_amount == 0) {
             revert InvalidAmount();
         }
-        AssetInfo memory assetInfo = assetData[_assetCid];
-        if (assetInfo.assetAddress == address(0)) {
-            revert InvalidAsset();
-        }
-        if (IdXasset(assetInfo.assetAddress).costInNativeInWei() * _amount > msg.value) {
+        if (IdXasset(_assetAddress).costInNativeInWei() * _amount > msg.value) {
             revert InsufficientAmount();
         }
         _;
     }
 
     function totalAssets() external view returns (uint256) {
-        return assetCids.length;
+        return assetAddresses.length;
     }
 
-    function getAssetInfo(string memory _assetCid) external view returns (AssetInfo memory) {
-        return assetData[_assetCid];
+    function getAssetInfo(string memory _assetCid) public view returns (IdXasset.AssetInfo memory) {
+        return IdXasset(assetData[_assetCid]).getAssetInfo();
     }
 
-    function getAllAssets() external view returns (AssetInfo[] memory allAssetInfo) {
-        allAssetInfo = new AssetInfo[](assetCids.length);
-        for (uint256 i = 0; i < assetCids.length; i++) {
-            allAssetInfo[i] = assetData[assetCids[i]];
+    function getAllAssetInfos() external view returns (address[] memory allAssetAddresses, IdXasset.AssetInfo[] memory allAssetInfo) {
+        allAssetInfo = new IdXasset.AssetInfo[](assetAddresses.length);
+        for (uint256 i = 0; i < assetAddresses.length; i++) {
+            allAssetInfo[i] = IdXasset(assetAddresses[i]).getAssetInfo();
         }
+        allAssetAddresses = assetAddresses;
     }
 
-    function getCommentsInfo(string memory _assetCid) external view returns (CommentInfo[] memory) {
-        return commentData[_assetCid];
+    function getCommentsInfo(address _assetAddress) external view returns (CommentInfo[] memory) {
+        return commentData[_assetAddress];
     }
 
     function getUserAssetData(address _user) external view returns (UserAssetInfo[] memory) {
@@ -123,67 +129,69 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
     }
 
     function addAsset(
-        AddAssetParams calldata _params
+        bytes32 _salt,
+        AssetInfoParams calldata _assetInfoParams
     )
         external
         nonReentrant
         whenNotPaused
-        isValidAsset(_params.assetTitle, _params.assetCid)
+        isValidAsset(_assetInfoParams)
+        returns (address assetAddress)
     {
+
+        string memory name = string.concat("decentralizedXAsset", Strings.toString(assetAddresses.length));
+        string memory symbol = string.concat("dXAsset", Strings.toString(assetAddresses.length));
+
         address assetFactoryAddress = dXConfig.getAddress(DXconstants.ASSET_FACTORY_ADDRESS);
-        address assetAddress =
-            IdXassetFactory(assetFactoryAddress).createAsset(_params.salt, _params.assetCid, _params.thumbnailCid, _params.costInNativeInWei, msg.sender, _params.description);
+        assetAddress =
+            IdXassetFactory(assetFactoryAddress).createAsset(_salt, name, symbol, IdXasset.AssetInfo({
+                author: msg.sender,
+                assetCid: _assetInfoParams.assetCid,
+                assetTitle: _assetInfoParams.assetTitle,
+                thumbnailCid: _assetInfoParams.thumbnailCid,
+                description: _assetInfoParams.description,
+                costInNativeInWei: _assetInfoParams.costInNativeInWei
+            }));
 
-        {
-            AssetInfo storage assetInfo = assetData[_params.assetCid];
-            assetInfo.author = msg.sender;
-            assetInfo.assetCid = _params.assetCid;
-            assetInfo.thumbnailCid = _params.thumbnailCid;
-            assetInfo.assetTitle = _params.assetTitle;
-            assetInfo.description = _params.description;
-            assetInfo.costInNativeInWei = _params.costInNativeInWei;
-            assetInfo.assetAddress = assetAddress;
-            
-            assetData[_params.assetCid] = assetInfo;
-        }
+        assetAddresses.push(assetAddress);
+        assetData[_assetInfoParams.assetCid] = assetAddress;
 
-        assetCids.push(_params.assetCid);
-        isDxAsset[assetAddress] = true;
-
-        emit AssetAdded(_params.assetTitle, _params.assetCid, _params.thumbnailCid, assetAddress, msg.sender, _params.costInNativeInWei);
+        emit AssetAdded(_assetInfoParams.assetTitle, _assetInfoParams.assetCid, _assetInfoParams.thumbnailCid, assetAddress, msg.sender, _assetInfoParams.costInNativeInWei);
     }
 
     function addComment(
-        string memory _assetCid,
+        address _assetAddress,
         string calldata _comment
     )
         external
         nonReentrant
         whenNotPaused
-        isValidComment(_assetCid, _comment)
+        onlydXAsset(_assetAddress)
+        isValidComment(_assetAddress, _comment)
     {
-        commentData[_assetCid].push(CommentInfo({ assetCid: _assetCid, comment: _comment, author: msg.sender }));
+        commentData[_assetAddress].push(CommentInfo({ comment: _comment, author: msg.sender }));
 
-        emit CommentAdded(_assetCid, _comment, msg.sender);
+        emit CommentAdded(_assetAddress, _comment, msg.sender);
     }
 
     function buyAsset(
-        string memory _assetCid,
+        address _assetAddress,
         uint256 _amount
     )
         external
         payable
         nonReentrant
         whenNotPaused
-        isValidBuy(_assetCid, _amount)
+        onlydXAsset(_assetAddress)
+        isValidBuy(_assetAddress, _amount)
     {
-        AssetInfo memory assetInfo = assetData[_assetCid];
+        IdXasset.AssetInfo memory assetInfo = IdXasset(_assetAddress).getAssetInfo();
 
-        _handleBuyFinances(_amount, msg.value, IdXasset(assetInfo.assetAddress).costInNativeInWei(), assetInfo.author);
+        _handleTransfer(_amount, msg.value, assetInfo.costInNativeInWei, assetInfo.author);
 
-        IdXasset(assetInfo.assetAddress).mint(msg.sender, _amount);
+        IdXasset(_assetAddress).mint(msg.sender, _amount);
 
-        emit AssetBought(_assetCid, _amount, msg.sender);
+        emit AssetBought(_assetAddress, _amount, msg.sender);
     }
 
     function pause() external {
@@ -210,6 +218,13 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
         emit MaxCommentLengthUpdated(maxCommentLength);
     }
 
+    function setMaxDescriptionLength(uint256 _maxDescriptionLength) external {
+        DXroleChecker.onlyAdmin(address(dXConfig));
+        maxDescriptionLength = _maxDescriptionLength;
+
+        emit MaxDescriptionLengthUpdated(maxDescriptionLength);
+    }
+
     function updatedXConfig(address _dXConfig) external {
         DXroleChecker.onlyAdmin(address(dXConfig));
         UtilLib.checkNonZeroAddress(_dXConfig);
@@ -231,7 +246,7 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
         emit WithdrawFee(_amount);
     }
 
-    function beforeTokenTransfer(address _from, address _to, uint256 _amount) external onlydXAsset {
+    function beforeTokenTransfer(address _from, address _to, uint256 _amount) external onlydXAsset(msg.sender) {
         if (_from != address(0)) {
             UserAssetInfo[] storage _userAssetData = userAssetData[_from];
             for (uint256 i = 0; i < _userAssetData.length; i++) {
@@ -262,7 +277,7 @@ contract DXmaster is Initializable, PausableUpgradeable, ReentrancyGuardUpgradea
         }
     }
 
-    function _handleBuyFinances(
+    function _handleTransfer(
         uint256 _amount,
         uint256 _msgValue,
         uint256 _costInNativeInWei,

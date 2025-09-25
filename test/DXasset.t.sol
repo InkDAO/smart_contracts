@@ -5,6 +5,7 @@ import { console } from "forge-std/console.sol";
 
 import { BaseTest } from "./BaseTest.t.sol";
 import { IdXmaster } from "../contracts/interfaces/IdXmaster.sol";
+import { IdXasset } from "../contracts/interfaces/IdXasset.sol";
 import { DXasset } from "../contracts/Token/DXasset.sol";
 import { DXconstants } from "../contracts/utils/DXconstants.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -51,16 +52,18 @@ contract MintTest is BaseTest {
         super.setUp();
 
         vm.prank(user);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
-            assetTitle: "test asset",
-            assetCid: "assetcid",
-            thumbnailCid: "thumbnailcid",
-            description: "description",
-            costInNativeInWei: 1 ether / 100
-        }));
-        IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
-        dXasset = DXasset(assetInfo.assetAddress);
+        address assetAddress = dXmaster.addAsset(
+            keccak256(abi.encodePacked("test asset")), 
+            IdXmaster.AssetInfoParams({
+                assetTitle: "test asset",
+                assetCid: "assetcid",
+                thumbnailCid: "thumbnailcid",
+                description: "description",
+                costInNativeInWei: 1 ether / 100
+            })
+        );
+        
+        dXasset = DXasset(assetAddress);
     }
 
     function test_Mint_Owner() public {

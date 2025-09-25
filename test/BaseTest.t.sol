@@ -29,14 +29,16 @@ contract BaseTest is Test {
 
     uint256 public maxCommentLength;
     uint256 public maxAssetTitleLength;
+    uint256 public maxDescriptionLength;
 
     function setUp() public virtual {
         bot = makeAddr("bot");
         user = makeAddr("user");
         admin = makeAddr("admin");
 
-        maxCommentLength = 200;
+        maxCommentLength = 100;
         maxAssetTitleLength = 100;
+        maxDescriptionLength = 200;
 
         vm.startPrank(admin);
 
@@ -52,7 +54,7 @@ contract BaseTest is Test {
         TransparentUpgradeableProxy dXmasterProxy =
             new TransparentUpgradeableProxy(address(dXmasterImpl), address(proxyAdmin), "");
         dXmaster = DXmaster(address(dXmasterProxy));
-        dXmaster.__DXmaster_Init(address(dXconfig), maxAssetTitleLength, maxCommentLength);
+        dXmaster.__DXmaster_Init(address(dXconfig), maxAssetTitleLength, maxCommentLength, maxDescriptionLength);
 
         DXassetFactory dXassetFactoryImpl = new DXassetFactory();
         TransparentUpgradeableProxy dXassetFactoryProxy =
@@ -60,7 +62,14 @@ contract BaseTest is Test {
         dXassetFactory = DXassetFactory(address(dXassetFactoryProxy));
         dXassetFactory.__DXassetFactory_Init(address(dXconfig));
 
-        dXasset = new DXasset("DXasset", "DXasset", user, "assetcid", "thumbnailcid", 1 ether / 100, address(dXconfig), "description");
+        dXasset = new DXasset("DXasset", "DXasset", IdXasset.AssetInfo({
+            author: user,
+            assetTitle: "test asset",
+            assetCid: "assetcid",
+            thumbnailCid: "thumbnailcid",
+            description: "description",
+            costInNativeInWei: 1 ether / 100
+        }), address(dXconfig));
 
         dXconfig.grantRole(DXconstants.BOT_ROLE, bot);
         dXconfig.setUint256(DXconstants.PLATFORM_FEE, 500); // 5%

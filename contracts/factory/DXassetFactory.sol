@@ -2,20 +2,19 @@
 pragma solidity ^0.8.20;
 
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import { DXasset } from "../Token/DXasset.sol";
 import { UtilLib } from "../utils/UtilLib.sol";
+import { IdXasset } from "../interfaces/IdXasset.sol";
 import { IdXconfig } from "../interfaces/IdXconfig.sol";
 import { DXroleChecker } from "../utils/DXroleChecker.sol";
 import { IdXassetFactory } from "../interfaces/IdXassetFactory.sol";
 
 contract DXassetFactory is Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, IdXassetFactory {
     IdXconfig public dXConfig;
-    address[] public assetAddresses;
 
     constructor() {
         _disableInitializers();
@@ -28,21 +27,11 @@ contract DXassetFactory is Initializable, PausableUpgradeable, ReentrancyGuardUp
         dXConfig = IdXconfig(_dXConfig);
     }
 
-    function totalAssetCount() external view returns (uint256) {
-        return assetAddresses.length;
-    }
-
-    function getAllAssets() external view returns (address[] memory) {
-        return assetAddresses;
-    }
-
     function createAsset(
         bytes32 _salt,
-        string memory _assetCid,
-        string memory _thumbnailCid,
-        uint256 _costInNative,
-        address _owner,
-        string memory _description
+        string memory _name,
+        string memory _symbol,
+        IdXasset.AssetInfo calldata _assetInfoParams
     )
         external
         nonReentrant
@@ -51,21 +40,16 @@ contract DXassetFactory is Initializable, PausableUpgradeable, ReentrancyGuardUp
     {
         DXroleChecker.onlyDXMaster(address(dXConfig));
 
-        uint256 totalAssets = assetAddresses.length;
-        string memory name = string.concat("decentralizedXAsset", Strings.toString(totalAssets));
-        string memory symbol = string.concat("dXAsset", Strings.toString(totalAssets));
-
         assetAddress = Create2.deploy(
             0,
             _salt,
             abi.encodePacked(
                 type(DXasset).creationCode,
-                abi.encode(name, symbol, _owner, _assetCid, _thumbnailCid, _costInNative, address(dXConfig), _description)
+                abi.encode(_name, _symbol, _assetInfoParams, address(dXConfig))
             )
         );
-        assetAddresses.push(assetAddress);
 
-        emit AssetCreated(assetAddress, _assetCid, _thumbnailCid, _costInNative, _description);
+        emit AssetCreated(assetAddress, _assetInfoParams.assetCid);
     }
 
     function pause() external {

@@ -14,8 +14,9 @@ import { UtilLib } from "../contracts/utils/UtilLib.sol";
 
 contract DXMasterTest is BaseTest {
     function test_Initialization() public view {
-        assertEq(dXmaster.maxCommentLength(), 200);
+        assertEq(dXmaster.maxCommentLength(), 100);
         assertEq(dXmaster.maxAssetTitleLength(), 100);
+        assertEq(dXmaster.maxDescriptionLength(), 200);
 
         assertEq(dXmaster.totalAssets(), 0);
 
@@ -32,14 +33,13 @@ contract DXMasterTest is BaseTest {
 
 contract AddAssetTest is BaseTest {
     event AssetAdded(
-        string _assetTitle, string _assetCid, string _thumbnailCid, address _assetAddress, address _owner, uint256 _costInNativeInWei
+        string _assetTitle, string _assetCid, string _thumbnailCid, address _assetAddress, address _author, uint256 _costInNativeInWei
     );
 
     function test_RevertEmptyAssetCid() public {
         vm.startPrank(user);
         vm.expectRevert(IdXmaster.InvalidAssetCid.selector);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
+        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), IdXmaster.AssetInfoParams({
             assetTitle: "test asset",
             assetCid: "",
             thumbnailCid: "thumbnailcid",
@@ -52,8 +52,7 @@ contract AddAssetTest is BaseTest {
     function test_RevertEmptyAssetTitle() public {
         vm.startPrank(user);
         vm.expectRevert(IdXmaster.EmptyAssetTitle.selector);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
+        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), IdXmaster.AssetInfoParams({
             assetTitle: "",
             assetCid: "asset title",
             thumbnailCid: "thumbnailcid",
@@ -65,8 +64,7 @@ contract AddAssetTest is BaseTest {
 
     function test_RevertAssetAlreadyAdded() public {
         vm.startPrank(user);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
+        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -74,8 +72,7 @@ contract AddAssetTest is BaseTest {
             costInNativeInWei: 1 ether / 100
         }));
         vm.expectRevert(IdXmaster.AssetAlreadyAdded.selector);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
+        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -88,8 +85,7 @@ contract AddAssetTest is BaseTest {
     function test_RevertAssetTitleLengthTooBig() public {
         vm.startPrank(user);
         vm.expectRevert(IdXmaster.AssetTitleLengthTooBig.selector);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset")),
+        dXmaster.addAsset(keccak256(abi.encodePacked("test asset")), IdXmaster.AssetInfoParams({
             assetTitle: "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -103,8 +99,7 @@ contract AddAssetTest is BaseTest {
         vm.prank(user);
         vm.expectEmit(true, true, true, false);
         emit AssetAdded("asset title", "assetcid", "thumbnailcid", address(0), user, 1 ether / 100);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset 1")),
+        address assetAddress = dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -112,20 +107,19 @@ contract AddAssetTest is BaseTest {
             costInNativeInWei: 1 ether / 100
         }));
 
-        IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
+        IdXasset.AssetInfo memory assetInfo = IdXasset(assetAddress).getAssetInfo();
         assertEq(assetInfo.author, user);
         assertEq(assetInfo.assetTitle, "asset title");
         assertEq(assetInfo.thumbnailCid, "thumbnailcid");
-        assertTrue(assetInfo.assetAddress != address(0));
-        assertEq(IdXasset(assetInfo.assetAddress).costInNativeInWei(), 1 ether / 100);
+        assertEq(assetInfo.assetCid, "assetcid");
+        assertEq(IdXasset(assetAddress).costInNativeInWei(), 1 ether / 100);
 
         assertEq(dXmaster.totalAssets(), 1);
     }
 
     function test_AddLargeAsset() public {
         vm.prank(user);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset 1")),
+        address assetAddress = dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -133,30 +127,33 @@ contract AddAssetTest is BaseTest {
             costInNativeInWei: 1 ether / 100
         }));
 
-        IdXmaster.AssetInfo memory postInfo = dXmaster.getAssetInfo("assetcid");
+        IdXasset.AssetInfo memory postInfo = IdXasset(assetAddress).getAssetInfo();
         assertEq(postInfo.assetTitle, "asset title");
-        assertTrue(postInfo.assetAddress != address(0));
-        assertEq(IdXasset(postInfo.assetAddress).costInNativeInWei(), 1 ether / 100);
+        assertEq(postInfo.assetCid, "assetcid");
+        assertEq(IdXasset(assetAddress).costInNativeInWei(), 1 ether / 100);
         assertEq(dXmaster.totalAssets(), 1);
 
-        IdXmaster.AssetInfo[] memory allPosts = dXmaster.getAllAssets();
+        (address[] memory allAssetAddresses, IdXasset.AssetInfo[] memory allPosts) = dXmaster.getAllAssetInfos();
         assertEq(allPosts.length, 1);
         assertEq(allPosts[0].author, user);
         assertEq(allPosts[0].assetTitle, "asset title");
-        assertEq(allPosts[0].assetAddress, postInfo.assetAddress);
-        assertEq(IdXasset(allPosts[0].assetAddress).costInNativeInWei(), 1 ether / 100);
+        assertEq(allPosts[0].assetCid, "assetcid");
+        assertEq(IdXasset(assetAddress).costInNativeInWei(), 1 ether / 100);
+
+        assertEq(allAssetAddresses.length, 1);
+        assertEq(allAssetAddresses[0], assetAddress);
     }
 }
 
 contract AddCommentTest is BaseTest {
-    event CommentAdded(string _assetCid, string _comment, address _author);
+    event CommentAdded(address _assetAddress, string _comment, address _author);
+    address public assetAddress;
 
     function setUp() public override {
         super.setUp();
 
         vm.prank(user);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset 1")),
+        assetAddress = dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -165,20 +162,20 @@ contract AddCommentTest is BaseTest {
         }));
     }
 
-    function test_RevertAssetIsNotBorn() public {
-        vm.expectRevert(IdXmaster.InvalidAsset.selector);
-        dXmaster.addComment("1", "Testing...");
+    function test_RevertInvalidAssetAddress() public {
+        vm.expectRevert(IdXmaster.InvalidAssetAddress.selector);
+        dXmaster.addComment(address(0), "Testing...");
     }
 
     function test_RevertEmptyComment() public {
         vm.expectRevert(IdXmaster.EmptyComment.selector);
-        dXmaster.addComment("assetcid", "");
+        dXmaster.addComment(assetAddress, "");
     }
 
     function test_RevertCommentLengthTooBig() public {
         vm.expectRevert(IdXmaster.CommentLengthTooBig.selector);
         dXmaster.addComment(
-            "assetcid",
+            assetAddress,
             "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz"
         );
     }
@@ -186,12 +183,12 @@ contract AddCommentTest is BaseTest {
     function test_EmitAssetComment() public {
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit CommentAdded("assetcid", "Testing...", user);
-        dXmaster.addComment("assetcid", "Testing...");
+        emit CommentAdded(assetAddress, "Testing...", user);
+        dXmaster.addComment(assetAddress, "Testing...");
 
-        IdXmaster.CommentInfo[] memory comments = dXmaster.getCommentsInfo("assetcid");
+        IdXmaster.CommentInfo[] memory comments = dXmaster.getCommentsInfo(assetAddress);
         assertEq(comments.length, 1);
-        assertEq(comments[0].assetCid, "assetcid");
+        assertEq(comments[0].author, user);
         assertEq(comments[0].comment, "Testing...");
     }
 }
@@ -199,17 +196,17 @@ contract AddCommentTest is BaseTest {
 contract BuyAssetTest is BaseTest {
     error NativeTransferFailed();
 
-    event AssetBought(string _assetCid, uint256 _amount, address _owner);
+    event AssetBought(address _assetAddress, uint256 _amount, address _buyer);
 
     address public author;
+    address public assetAddress;
 
     function setUp() public override {
         super.setUp();
 
         author = makeAddr("author");
         vm.prank(author);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset 1")),
+        assetAddress = dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -217,23 +214,22 @@ contract BuyAssetTest is BaseTest {
             costInNativeInWei: 1 ether / 100
         }));
 
-        IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
-        dXasset = DXasset(assetInfo.assetAddress);
+        dXasset = DXasset(assetAddress);
     }
 
     function test_RevertInvalidAssetCid() public {
-        vm.expectRevert(IdXmaster.InvalidAsset.selector);
-        dXmaster.buyAsset("1", 1);
+        vm.expectRevert(IdXmaster.InvalidAssetAddress.selector);
+        dXmaster.buyAsset(address(0), 1);
     }
 
     function test_RevertInvalidAmount() public {
         vm.expectRevert(IdXmaster.InvalidAmount.selector);
-        dXmaster.buyAsset("assetcid", 0);
+        dXmaster.buyAsset(assetAddress, 0);
     }
 
     function test_RevertInsufficientAmount() public {
         vm.expectRevert(IdXmaster.InsufficientAmount.selector);
-        dXmaster.buyAsset("assetcid", 1);
+        dXmaster.buyAsset(assetAddress, 1);
     }
 
     function test_RevertRefundableNativeTransferFailed() public {
@@ -241,13 +237,12 @@ contract BuyAssetTest is BaseTest {
 
         vm.prank(address(dXconfig));
         vm.expectRevert(NativeTransferFailed.selector);
-        dXmaster.buyAsset{ value: 1 ether }("assetcid", 1);
+        dXmaster.buyAsset{ value: 1 ether }(assetAddress, 1);
     }
 
     function test_RevertAuthorNativeTransferFailed() public {
         vm.prank(address(dXconfig));
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset 1")),
+        assetAddress = dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid1",
             thumbnailCid: "thumbnailcid",
@@ -258,15 +253,15 @@ contract BuyAssetTest is BaseTest {
         deal(user, 1 ether);
         vm.prank(user);
         vm.expectRevert(NativeTransferFailed.selector);
-        dXmaster.buyAsset{ value: 1 ether }("assetcid1", 1);
+        dXmaster.buyAsset{ value: 1 ether }(assetAddress, 1);
     }
 
     function test_EmitAssetBought() public {
         deal(user, 1 ether / 100);
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit AssetBought("assetcid", 1, user);
-        dXmaster.buyAsset{ value: 1 ether / 100 }("assetcid", 1);
+        emit AssetBought(assetAddress, 1, user);
+        dXmaster.buyAsset{ value: 1 ether / 100 }(assetAddress, 1);
 
         assertEq(dXasset.balanceOf(user), 1);
         assertEq(address(user).balance, 0);
@@ -275,7 +270,7 @@ contract BuyAssetTest is BaseTest {
 
         IdXmaster.UserAssetInfo[] memory userAssetData = dXmaster.getUserAssetData(user);
         assertEq(userAssetData.length, 1);
-        assertEq(userAssetData[0].assetAddress, address(dXasset));
+        assertEq(userAssetData[0].assetAddress, assetAddress);
         assertEq(userAssetData[0].amount, 1);
     }
 
@@ -283,8 +278,8 @@ contract BuyAssetTest is BaseTest {
         deal(user, 1 ether);
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit AssetBought("assetcid", 3, user);
-        dXmaster.buyAsset{ value: 1 ether }("assetcid", 3);
+        emit AssetBought(assetAddress, 3, user);
+        dXmaster.buyAsset{ value: 1 ether }(assetAddress, 3);
 
         assertEq(dXasset.balanceOf(user), 3);
         assertEq(address(user).balance, 97 ether / 100);
@@ -293,7 +288,7 @@ contract BuyAssetTest is BaseTest {
 
         IdXmaster.UserAssetInfo[] memory userAssetData = dXmaster.getUserAssetData(user);
         assertEq(userAssetData.length, 1);
-        assertEq(userAssetData[0].assetAddress, address(dXasset));
+        assertEq(userAssetData[0].assetAddress, assetAddress);
         assertEq(userAssetData[0].amount, 3);
     }
 }
@@ -302,14 +297,14 @@ contract BeforeTokenTransferTest is BaseTest {
     error NotdXAsset();
 
     address public author;
+    address public assetAddress;
 
     function setUp() public override {
         super.setUp();
 
         author = makeAddr("author");
         vm.prank(author);
-        dXmaster.addAsset(IdXmaster.AddAssetParams({
-            salt: keccak256(abi.encodePacked("test asset 1")),
+        assetAddress = dXmaster.addAsset(keccak256(abi.encodePacked("test asset 1")), IdXmaster.AssetInfoParams({
             assetTitle: "asset title",
             assetCid: "assetcid",
             thumbnailCid: "thumbnailcid",
@@ -317,19 +312,19 @@ contract BeforeTokenTransferTest is BaseTest {
             costInNativeInWei: 1 ether / 100
         }));
 
-        IdXmaster.AssetInfo memory assetInfo = dXmaster.getAssetInfo("assetcid");
-        dXasset = DXasset(assetInfo.assetAddress);
+        dXasset = DXasset(assetAddress);
     }
 
     function test_RevertNotDxAsset() public {
-        vm.expectRevert(NotdXAsset.selector);
-        dXmaster.beforeTokenTransfer(user, user, 1);
+        vm.prank(user);
+        vm.expectRevert();
+        dXmaster.beforeTokenTransfer(user, author, 1);
     }
 
     function test_AssetMint() public {
         deal(user, 1 ether / 100);
         vm.prank(user);
-        dXmaster.buyAsset{ value: 1 ether / 100 }("assetcid", 1);
+        dXmaster.buyAsset{ value: 1 ether / 100 }(assetAddress, 1);
 
         assertEq(dXasset.balanceOf(user), 1);
         assertEq(address(user).balance, 0);
@@ -338,14 +333,14 @@ contract BeforeTokenTransferTest is BaseTest {
 
         IdXmaster.UserAssetInfo[] memory userAssetData = dXmaster.getUserAssetData(user);
         assertEq(userAssetData.length, 1);
-        assertEq(userAssetData[0].assetAddress, address(dXasset));
+        assertEq(userAssetData[0].assetAddress, assetAddress);
         assertEq(userAssetData[0].amount, 1);
     }
 
     function test_AssetBurn() public {
         deal(user, 1 ether / 100);
         vm.prank(user);
-        dXmaster.buyAsset{ value: 1 ether / 100 }("assetcid", 1);
+        dXmaster.buyAsset{ value: 1 ether / 100 }(assetAddress, 1);
 
         assertEq(dXasset.balanceOf(user), 1);
         assertEq(address(user).balance, 0);
@@ -369,7 +364,7 @@ contract BeforeTokenTransferTest is BaseTest {
 
         deal(user, 1 ether / 100);
         vm.prank(user);
-        dXmaster.buyAsset{ value: 1 ether / 100 }("assetcid", 1);
+        dXmaster.buyAsset{ value: 1 ether / 100 }(assetAddress, 1);
 
         assertEq(dXasset.balanceOf(user), 1);
         assertEq(address(user).balance, 0);
@@ -390,7 +385,7 @@ contract BeforeTokenTransferTest is BaseTest {
         assertEq(userAssetData.length, 0);
         IdXmaster.UserAssetInfo[] memory user2AssetData = dXmaster.getUserAssetData(user2);
         assertEq(user2AssetData.length, 1);
-        assertEq(user2AssetData[0].assetAddress, address(dXasset));
+        assertEq(user2AssetData[0].assetAddress, assetAddress);
         assertEq(user2AssetData[0].amount, 1);
     }
 
@@ -399,7 +394,7 @@ contract BeforeTokenTransferTest is BaseTest {
 
         deal(user, 2 ether / 100);
         vm.prank(user);
-        dXmaster.buyAsset{ value: 2 ether / 100 }("assetcid", 2);
+        dXmaster.buyAsset{ value: 2 ether / 100 }(assetAddress, 2);
 
         assertEq(dXasset.balanceOf(user), 2);
         assertEq(address(user).balance, 0);
@@ -418,11 +413,11 @@ contract BeforeTokenTransferTest is BaseTest {
 
         IdXmaster.UserAssetInfo[] memory userAssetData = dXmaster.getUserAssetData(user);
         assertEq(userAssetData.length, 1);
-        assertEq(userAssetData[0].assetAddress, address(dXasset));
+        assertEq(userAssetData[0].assetAddress, assetAddress);
         assertEq(userAssetData[0].amount, 1);
         IdXmaster.UserAssetInfo[] memory user2AssetData = dXmaster.getUserAssetData(user2);
         assertEq(user2AssetData.length, 1);
-        assertEq(user2AssetData[0].assetAddress, address(dXasset));
+        assertEq(user2AssetData[0].assetAddress, assetAddress);
         assertEq(user2AssetData[0].amount, 1);
 
         vm.prank(user);
