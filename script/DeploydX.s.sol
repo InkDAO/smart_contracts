@@ -46,7 +46,6 @@ contract DeploydX is Script {
         marketPlace = MarketPlace(payable(address(marketPlaceProxy)));
         marketPlace.__MarketPlace_Init(address(dXconfig), maxPostTitleLength, maxDescriptionLength, maxPriceInNative);
 
-        dXconfig.grantRole(DXconstants.BOT_ROLE, admin);
         dXconfig.setUint256(DXconstants.PLATFORM_FEE, 500); // 5%
 
         console2.log("proxyAdmin deployed at: ", address(proxyAdmin));
