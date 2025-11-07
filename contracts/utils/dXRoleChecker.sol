@@ -18,16 +18,4 @@ library DXroleChecker {
             revert IdXconfig.NotAdmin();
         }
     }
-
-    function onlyBot(address _dXConfig) external view {
-        if (!IAccessControl(_dXConfig).hasRole(DXconstants.BOT_ROLE, msg.sender)) {
-            revert IdXconfig.NotBot();
-        }
-    }
-
-    function onlyDXMaster(address _dXConfig) external view {
-        if (IdXconfig(_dXConfig).getAddress(DXconstants.DXMASTER_ADDRESS) != msg.sender) {
-            revert IdXconfig.NotDXMaster();
-        }
-    }
 }
